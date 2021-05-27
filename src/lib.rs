@@ -24,6 +24,7 @@ pub use error::LionessError;
 pub mod util;
 pub use util::{xor, xor_assign};
 
+pub const LIONESS_NONCES_SIZE: usize = 32;
 pub const DIGEST_RESULT_SIZE: usize = 32;
 pub const DIGEST_KEY_SIZE: usize = 64;
 pub const STREAM_CIPHER_KEY_SIZE: usize = 32;
@@ -95,9 +96,11 @@ where H: DigestLioness+Input+VariableOutput,
     /// extern crate chacha;
     /// extern crate lioness;
     /// extern crate hex;
-    /// use self::lioness::{Lioness, RAW_KEY_SIZE};
-    /// use chacha::ChaCha;
     /// use blake2::VarBlake2b;
+    /// use chacha::ChaCha;
+    ///
+    /// use self::lioness::{Lioness, RAW_KEY_SIZE};
+    ///
     /// # #[macro_use] extern crate arrayref; fn main() {
     ///
     /// let key = hex::decode(
@@ -108,7 +111,7 @@ where H: DigestLioness+Input+VariableOutput,
     ///      50b0eb500670858ca7983a8760be307ff3e5c05f22799cb60d7c57fe3fc8b980aa65e89e3ac0a\
     ///      c147af7deb").unwrap();
     ///
-    /// let nonce: [u8; 8] = [97, 220, 148, 154, 29, 118, 188, 181];
+    /// let nonce: [u8; 32] =  [30,  84, 167, 175,  87, 239, 237, 174, 64, 121, 126, 161, 95, 115, 224, 107, 178, 133, 122,  30,  53, 122, 169, 193, 243, 212, 31, 218, 167, 110, 108, 170];;
     ///
     /// const PLAINTEXT: &'static [u8] = b"Open, secure and reliable
     /// connectivity is necessary (although not sufficient) to
@@ -220,7 +223,7 @@ where H: DigestLioness+Input+VariableOutput,
     }
 
     /// Given a key, create a new Lioness cipher
-    pub fn new_raw(key: &[u8; 2*STREAM_CIPHER_KEY_SIZE + 2*DIGEST_KEY_SIZE], nonce: &[u8; CHACHA20_NONCE_SIZE]) -> Lioness<H,SC> {
+    pub fn new_raw(key: &[u8; 2*STREAM_CIPHER_KEY_SIZE + 2*DIGEST_KEY_SIZE], nonce: &[u8; LIONESS_NONCES_SIZE]) -> Lioness<H,SC> {
         let (_k1,_k2,_k3,_k4) = array_refs![key,STREAM_CIPHER_KEY_SIZE,DIGEST_KEY_SIZE,STREAM_CIPHER_KEY_SIZE,DIGEST_KEY_SIZE];
 
         let mut ivs = [0; 2*DIGEST_KEY_SIZE + 2*CHACHA20_NONCE_SIZE];
@@ -278,7 +281,7 @@ mod tests {
         const TEST_PLAINTEXT: &'static [u8] = b"Hello there world, I'm just a test string";
         let mut key = [0u8; RAW_KEY_SIZE];
         thread_rng().fill_bytes(&mut key);
-        let mut nonce = [0u8; CHACHA20_NONCE_SIZE];
+        let mut nonce = [0u8; LIONESS_NONCES_SIZE];
         thread_rng().fill_bytes(&mut nonce);
         let l = Lioness::<VarBlake2b,ChaCha>::new_raw(&key, &nonce);
         let mut v: Vec<u8> = TEST_PLAINTEXT.to_owned();
@@ -298,7 +301,7 @@ mod tests {
         const TEST_PLAINTEXT: &'static [u8] = b"Hello there world, I'm just a test string";
         let mut key = [0u8; RAW_KEY_SIZE];
         thread_rng().fill_bytes(&mut key);
-        let mut nonce = [0u8; CHACHA20_NONCE_SIZE];
+        let mut nonce = [0u8; LIONESS_NONCES_SIZE];
         thread_rng().fill_bytes(&mut nonce);
         let l = Lioness::<VarBlake2b,ChaCha>::new_raw(&key, &nonce);
         let mut v: Vec<u8> = TEST_PLAINTEXT.to_owned();
@@ -314,7 +317,7 @@ mod tests {
         const TEST_PLAINTEXT: &'static [u8] = b"Hello there world, I'm just a test string";
         let mut key = [0u8; RAW_KEY_SIZE];
         thread_rng().fill_bytes(&mut key);
-        let mut nonce = [0u8; CHACHA20_NONCE_SIZE];
+        let mut nonce = [0u8; LIONESS_NONCES_SIZE];
         thread_rng().fill_bytes(&mut nonce);
         let l = Lioness::<VarBlake2b,ChaCha>::new_raw(&key, &nonce);
         let mut v: Vec<u8> = TEST_PLAINTEXT.to_owned();
@@ -332,7 +335,7 @@ mod tests {
 
     fn test_cipher(tests: &[Test]) {
         for t in tests {
-            let cipher = Lioness::<VarBlake2b,ChaCha>::new_raw(array_ref!(t.key.as_slice(), 0, RAW_KEY_SIZE), array_ref!(t.nonce.as_slice(), 0, CHACHA20_NONCE_SIZE));
+            let cipher = Lioness::<VarBlake2b,ChaCha>::new_raw(array_ref!(t.key.as_slice(), 0, RAW_KEY_SIZE), array_ref!(t.nonce.as_slice(), 0, LIONESS_NONCES_SIZE));
             let mut block: Vec<u8> = t.input.as_slice().to_owned();
             cipher.encrypt(&mut block).unwrap();
             let want: Vec<u8> = t.output.as_slice().to_owned();
